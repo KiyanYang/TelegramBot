@@ -2,6 +2,8 @@
 
 基于 python-telegram-bot 的 telegram bot
 
+[![](https://img.shields.io/badge/Bot%20API-5.3-blue?logo=telegram)](https://core.telegram.org/bots/api-changelog)
+
 # 环境
 
 `python 3.10`
@@ -14,7 +16,7 @@
 
 ## 环境变量
 
-需要设置以下 6 个环境变量
+需要设置以下 6 个环境变量，下面为 ps1 文件示例
 
 ```
 $Env:TOKEN_BOT = "TG_BOT_TOKEN_1"  # Telegram 机器人的 TOKEN
@@ -22,7 +24,7 @@ $Env:TOKEN_TEST = "TG_BOT_TOKEN_2" # Telegram 测试使用的机器人的 TOKEN,
 $Env:TOKEN_GITHUB = "Personal access token"  # 适用于 Github API v4 的 TOKEN
 $Env:DEVELOPER_TOKEN = "TG_BOT_TOKEN_3" # 向开发者发生错误日志的机器人的 TOKEN
 $Env:DEVELOPER_CHAT_ID = "DEVELOPER_CHAT_ID"  # 开发者的 ID
-$Env:LOCAL = 'True' # 是否使用本地环境，用于测试以及代理等相关内容，`'True'` 为开启，其他情况下均为关闭
+$Env:LOCAL = 'True' # 是否使用本地环境，用于测试以及代理等相关内容，'True' 为开启，其他情况下均为关闭
 ```
 
 ## 配置
