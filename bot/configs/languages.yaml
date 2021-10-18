@@ -1,0 +1,134 @@
+%YAML 1.2
+---
+备注: |-
+  在文中组合使用中的字段需要使用双引号，以解决空格问题，比如 hello/hello 字段。
+  对于小字段文字使用 |-，比如上述的组合字段。
+
+zh:
+  help:
+    help_1: |
+      我是 LSCR 的小助手，有以下功能，欢迎体验( •̀ ω •́ )✧
+
+      \*命令列表：\*
+      /start    开始
+      /hello    向你问好
+      /bing_image    获取必应今日高清壁纸
+      /fund    获取基金相关信息
+          「基金信息」「今日操作」
+      /settings    设置
+      /cancel    取消操作
+      /help    获取帮助
+    help_2: |
+      我是 LSCR 的小助手，有以下功能，欢迎体验( •̀ ω •́ )✧
+
+      \*命令列表：\*
+      /start    开始
+      /hello    向你问好
+      /bing_image    获取必应今日高清壁纸
+      /cancel    取消操作
+      /help    获取帮助
+
+  start:
+    start: |
+      你好，我是LSCR的小助手!
+      发送 /help 获取帮助
+
+  hello:
+    hello: "你好，"
+
+  bing_image:
+    bing_image: "查看超高清图"
+
+  cancel:
+    cancel: |
+      操作已取消, 状态已重置
+
+  unknown:
+    unknown: |
+      抱歉，我没有这个命令
+
+  settings:
+    settings: |
+      请选择要设置的项目
+    set_my_commands: |
+      设置命令成功
+    del_my_commands: |
+      删除命令成功
+    cancel: |
+      命令 /settings 已取消
+
+  fund:
+    fund: |
+      请选择项目
+    show_fund_code: |
+      请选择基金代码，或者输入其他基金代码。输入 /cancel 退出操作
+    cancel: |
+      命令 /myfund 已取消
+  error:
+    error: |
+      处理更新时发生异常。
+
+en:
+  help:
+    help_1: |
+      我是 LSCR 的小助手，欢迎体验( •̀ ω •́ )✧
+
+      \*命令列表：\*
+      /start    开始
+      /hello    向你问好
+      /bing_image    获取必应今日高清壁纸
+      /fund    获取基金相关信息
+          「基金信息」「今日操作」
+      /settings    设置
+      /cancel    取消操作
+      /help    获取帮助
+    help_2: |
+      我是 LSCR 的小助手，欢迎体验( •̀ ω •́ )✧
+
+      \*命令列表：\*
+      /start    开始
+      /hello    向你问好
+      /bing_image    获取必应今日高清壁纸
+      /cancel    取消操作
+      /help    获取帮助
+
+  start:
+    start: |
+      你好，我是LSCR的小助手!
+      发送 /help 获取帮助
+
+  hello:
+    hello: "Hello, "
+
+  bing_image:
+    bing_image: "View UHD image"
+
+  cancal:
+    cancal: |
+      操作已取消, 状态已重置
+
+  unknown:
+    unknown: |
+      Unrecognized command. Say what?
+
+  settings: # 开发者保留命令
+    settings: |
+      请选择要设置的项目
+    set_my_commands: |
+      设置命令成功
+    del_my_commands: |
+      删除命令成功
+    cancel: |
+      命令 /settings 已取消
+
+  fund: # 开发者保留命令
+    fund: |
+      请选择项目
+    show_fund_code: |
+      请选择基金代码，或者输入其他基金代码。输入 /cancel 退出操作
+    cancel: |
+      命令 /fund 已取消
+
+  error:
+    error: |
+      An exception occurred.
