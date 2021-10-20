@@ -8,6 +8,10 @@
 
 `python 3.10`
 
+# 功能
+
+待补充
+
 # 目录
 
 ```
@@ -27,8 +31,6 @@
 │  ├─handlers.py
 │  ├─my_bot.py
 │  └─__init__.py
-├─.gitignore
-├─LICENSE
 ├─main.py
 ├─README.md
 └─requirements.txt
@@ -36,7 +38,7 @@
 
 # heroku
 
-文档待补充
+如果部署到 heroku，除了需要上面目录中的文件外，还需要 `Procfile` 和 `runtime.txt` 两个文件
 
 # 配置
 
