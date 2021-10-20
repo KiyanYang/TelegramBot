@@ -8,6 +8,32 @@
 
 `python 3.10`
 
+# 目录
+
+```
+├─bot
+│  ├─configs
+│  │  ├─config.yaml
+│  │  └─languages.yaml
+│  ├─tools
+│  │  ├─exception.py
+│  │  ├─fund.py
+│  │  ├─github.py
+│  │  ├─hot_config.py
+│  │  ├─other.py
+│  │  ├─text.py
+│  │  └─__init__.py
+│  ├─config.py
+│  ├─handlers.py
+│  ├─my_bot.py
+│  └─__init__.py
+├─.gitignore
+├─LICENSE
+├─main.py
+├─README.md
+└─requirements.txt
+```
+
 # heroku
 
 文档待补充
