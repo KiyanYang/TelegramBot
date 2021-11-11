@@ -7,23 +7,32 @@ REQUEST_KWARGS: { proxy_url: http://127.0.0.1:7890 }
 # 机器人命令
 MY_COMMANDS_1:
   - [/start, 开始使用]
-  - [/hello, 向你问好]
   - [/bing_image, 获取必应今日高清壁纸]
+  - [/echo, 复读消息]
+  - [/hello, 向你问好]
+  - [/hhsh, 能不能好好说话]
   - [/fund, 获取基金相关信息]
   - [/settings, 设置]
   - [/cancel, 取消操作]
   - [/help, 获取帮助]
 MY_COMMANDS_2:
   - [/start, 开始使用]
-  - [/hello, 向你问好]
   - [/bing_image, 获取必应今日高清壁纸]
+  - [/echo, 复读消息]
+  - [/hello, 向你问好]
+  - [/hhsh, 能不能好好说话]
   - [/cancel, 取消操作]
   - [/help, 获取帮助]
 
 # GitHub 文件 Raw 访问路径
-GitHub_MyFund: https://raw.githubusercontent.com/KiyanYang/data/main/my-fund.json
+GitHub:
+  fund: https://raw.githubusercontent.com/KiyanYang/MyData/main/fund.yaml
 jsdelivr:
-  fund: https://cdn.jsdelivr.net/gh/KiyanYang/data@main/my-fund.json
+  pass: https://example.com
 
 # API 访问路径
-API_holiday: "https://service-cu3bic1s-1302072848.sg.apigw.tencentcs.com/release/holiday/"
+API:
+  # 获取节假日信息, get: url + '2021-10-01'
+  holiday: "https://service-cu3bic1s-1302072848.sg.apigw.tencentcs.com/release/holiday/"
+  # 能不能好好说话, post: url + {'text': 'yyds,tmd'}
+  nbnhhsh: "https://lab.magiconch.com/api/nbnhhsh/guess"

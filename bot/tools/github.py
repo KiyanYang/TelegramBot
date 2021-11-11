@@ -13,6 +13,8 @@ import json
 
 import requests
 
+from .config import ConfigManager
+
 
 class GitHubAPIv4:
     def __init__(self, token: str, proxy: str | None = None) -> None:
@@ -32,10 +34,6 @@ class GitHubAPIv4:
         text_b64 = base64.b64encode(text.encode('UTF-8')).decode('UTF-8')
         return text_b64
 
-    # 将 dict 数据转换为格式化的 json 数据
-    def _dict2json(self, text: dict):
-        return json.dumps(text, indent=4, ensure_ascii=False)
-
     def _get(self, *args, **kwargs):
         if self.proxy is None:
             return requests.get(*args, **kwargs, headers=self.headers)
@@ -48,6 +46,11 @@ class GitHubAPIv4:
         else:
             return requests.post(*args, **kwargs, headers=self.headers, proxies=self.proxies)
 
+    # 将 dict 数据转换为格式化的 json 数据
+    @staticmethod
+    def dict2json(text: dict):
+        return json.dumps(text, indent=4, ensure_ascii=False)
+
     def get_raw(self, url: str, type: str | None = None):
         """获取数据
 
@@ -56,14 +59,15 @@ class GitHubAPIv4:
         url : str
             链接
         type : str, optional
-            类型, 可选: text | json , 如果输入类型不在可选参数内, 则直接返回请求数据, by default None
+            类型, 可选: text | json |yaml ,
+            如果输入类型不在可选参数内, 则直接返回请求数据, by default None
 
         Returns
         -------
         str
             类型为 text 时, 返回此类型
         dict
-            类型为 json 时, 返回此类型
+            类型为 json | yaml 时, 返回此类型
         Response
             其他类型返回 Response, 即 requests 的响应类型
         """
@@ -73,6 +77,8 @@ class GitHubAPIv4:
                 return res.text
             case 'json':
                 return res.json()
+            case 'yaml':
+                return ConfigManager().yaml_load(text=res.text)
             case _:
                 return res
 

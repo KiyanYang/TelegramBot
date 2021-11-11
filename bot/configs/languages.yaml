@@ -1,134 +1,160 @@
 %YAML 1.2
 ---
-备注: |-
-  在文中组合使用中的字段需要使用双引号，以解决空格问题，比如 hello/hello 字段。
-  对于小字段文字使用 |-，比如上述的组合字段。
-
-zh:
-  help:
-    help_1: |
-      我是 LSCR 的小助手，有以下功能，欢迎体验( •̀ ω •́ )✧
-
-      \*命令列表：\*
-      /start    开始
-      /hello    向你问好
-      /bing_image    获取必应今日高清壁纸
-      /fund    获取基金相关信息
-          「基金信息」「今日操作」
-      /settings    设置
-      /cancel    取消操作
-      /help    获取帮助
-    help_2: |
-      我是 LSCR 的小助手，有以下功能，欢迎体验( •̀ ω •́ )✧
-
-      \*命令列表：\*
-      /start    开始
-      /hello    向你问好
-      /bing_image    获取必应今日高清壁纸
-      /cancel    取消操作
-      /help    获取帮助
-
-  start:
-    start: |
-      你好，我是LSCR的小助手!
-      发送 /help 获取帮助
-
-  hello:
-    hello: "你好，"
-
+bing_image:
   bing_image:
-    bing_image: "查看超高清图"
+    zh-hans: "查看超高清图"
+    en: "View UHD image"
 
+cancel:
   cancel:
-    cancel: |
-      操作已取消, 状态已重置
+    zh-hans: 操作已取消, 状态已重置
+    en: 操作已取消, 状态已重置
 
-  unknown:
-    unknown: |
-      抱歉，我没有这个命令
+hello:
+  hello:
+    zh-hans: "你好，"
+    en: "Hello, "
 
-  settings:
-    settings: |
-      请选择要设置的项目
-    set_my_commands: |
-      设置命令成功
-    del_my_commands: |
-      删除命令成功
-    cancel: |
-      命令 /settings 已取消
+help:
+  help_1:
+    zh-hans: |
+      我是 LSCR 的小助手，我有以下命令，欢迎体验( •̀ ω •́ )✧
 
-  fund:
-    fund: |
-      请选择项目
-    show_fund_code: |
-      请选择基金代码，或者输入其他基金代码。输入 /cancel 退出操作
-    cancel: |
-      命令 /myfund 已取消
-  error:
-    error: |
-      处理更新时发生异常。
+      \*命令列表\*
+      /start - 开始
+      /bing_image - 获取必应今日高清壁纸
+      /echo - 复读消息
+      /hello - 向你问好
+      /hhsh - 能不能好好说话，拼音首字母缩写释义
+          用法：\`/hhsh <必填参数>\`
+          via【\[能不能好好说话？\]\(https://lab.magiconch.com/nbnhhsh/\)】
+      /fund - 获取基金相关信息
+          基金信息 | 今日操作 | 估计收益
+          via【天天基金】
+      /settings - 设置
+      /cancel - 取消操作
+      /help - 获取帮助
+    en: |
+      我是 LSCR 的小助手，我有以下命令，欢迎体验( •̀ ω •́ )✧
 
-en:
-  help:
-    help_1: |
-      我是 LSCR 的小助手，欢迎体验( •̀ ω •́ )✧
+      \*命令列表\*
+      /start - 开始
+      /bing_image - 获取必应今日高清壁纸
+      /echo - 复读消息
+      /hello - 向你问好
+      /hhsh - 能不能好好说话，拼音首字母缩写释义
+          用法：\`/hhsh <必填参数>\`
+          via【\[能不能好好说话？\]\(https://lab.magiconch.com/nbnhhsh/\)】
+      /fund - 获取基金相关信息
+          基金信息 | 今日操作 | 估计收益
+          via【天天基金】
+      /settings - 设置
+      /cancel - 取消操作
+      /help - 获取帮助
+  help_2:
+    zh-hans: |
+      我是 LSCR 的小助手，我有以下命令，欢迎体验( •̀ ω •́ )✧
 
-      \*命令列表：\*
-      /start    开始
-      /hello    向你问好
-      /bing_image    获取必应今日高清壁纸
-      /fund    获取基金相关信息
-          「基金信息」「今日操作」
-      /settings    设置
-      /cancel    取消操作
-      /help    获取帮助
-    help_2: |
-      我是 LSCR 的小助手，欢迎体验( •̀ ω •́ )✧
+      \*命令列表\*
+      /start - 开始
+      /bing_image - 获取必应今日高清壁纸
+      /echo - 复读消息
+      /hello - 向你问好
+      /hhsh - 能不能好好说话，拼音首字母缩写释义
+          用法：\`/hhsh <必填参数>\`
+          via【\[能不能好好说话？\]\(https://lab.magiconch.com/nbnhhsh/\)】
+      /cancel - 取消操作
+      /help - 获取帮助
+    en: |
+      我是 LSCR 的小助手，我有以下命令，欢迎体验( •̀ ω •́ )✧
 
-      \*命令列表：\*
-      /start    开始
-      /hello    向你问好
-      /bing_image    获取必应今日高清壁纸
-      /cancel    取消操作
-      /help    获取帮助
+      \*命令列表\*
+      /start - 开始
+      /bing_image - 获取必应今日高清壁纸
+      /echo - 复读消息
+      /hello - 向你问好
+      /hhsh - 能不能好好说话，拼音首字母缩写释义
+          用法：\`/hhsh <必填参数>\`
+          via【\[能不能好好说话？\]\(https://lab.magiconch.com/nbnhhsh/\)】
+      /cancel - 取消操作
+      /help - 获取帮助
 
+hhsh:
+  hhsh_1:
+    zh-hans: |
+      用法：\`/hhsh <必填参数>\`
+      例子：\`/hhsh yyds\`
+    en: |
+      Usage：\`/hhsh <required args>\`
+      Example：\`/hhsh yyds\`
+  hhsh_2:
+    zh-hans: 尚未收录
+    en: Not yet included
+
+start:
   start:
-    start: |
+    zh-hans: |
+      你好，我是LSCR的小助手!
+      发送 /help 获取帮助
+    en: |
       你好，我是LSCR的小助手!
       发送 /help 获取帮助
 
-  hello:
-    hello: "Hello, "
+fund:
+  fund:
+    zh-hans: 请选择项目
+    en: 请选择项目
+  show_fund_code:
+    zh-hans: 请选择基金代码，或者输入其他基金代码。输入 /cancel 退出操作
+    en: 请选择基金代码，或者输入其他基金代码。输入 /cancel 退出操作
+  cancel:
+    zh-hans: 命令 /fund 已取消
+    en: 命令 /fund 已取消
 
-  bing_image:
-    bing_image: "View UHD image"
+settings:
+  settings:
+    zh-hans: 请选择要设置的项目
+    en: 请选择要设置的项目
+  set_my_commands:
+    zh-hans: 设置命令成功
+    en: 设置命令成功
+  del_my_commands:
+    zh-hans: 删除命令成功
+    en: 删除命令成功
+  set_log_level_1:
+    zh-hans:
+      - 当前日志级别为
+      - 请输入新的日志级别
+    en:
+      - 当前日志级别为
+      - 请输入新的日志级别
+  set_log_level_2:
+    zh-hans: 设置日志级别成功
+    en: 设置日志级别成功
+  man_all_update_handler_1:
+    zh-hans:
+      - 当前【更新处理器】为关闭状态
+      - 当前【更新处理器】为打开状态
+      - 回复 \`Yes\` 切换状态，回复 /cancel 则退出操作
+    en:
+      - 当前【更新处理器】为关闭状态
+      - 当前【更新处理器】为打开状态
+      - 回复 \`Yes\` 切换状态，回复 /cancel 则退出操作
+  man_all_update_handler_2:
+    zh-hans: 【更新处理器】状态切换成功
+    en: 【更新处理器】状态切换成功
+  cancel:
+    zh-hans: 命令 /settings 已取消
+    en: 命令 /settings 已取消
 
-  cancal:
-    cancal: |
-      操作已取消, 状态已重置
+echo:
+  echo:
+    zh-hans: '用法：使用 \`/echo\` 回复某条消息'
+    en: Usage：使用 \`/echo\` 回复某条消息
 
+unknown:
   unknown:
-    unknown: |
+    zh-hans: |
+      抱歉，我没有这个命令
+    en: |
       Unrecognized command. Say what?
-
-  settings: # 开发者保留命令
-    settings: |
-      请选择要设置的项目
-    set_my_commands: |
-      设置命令成功
-    del_my_commands: |
-      删除命令成功
-    cancel: |
-      命令 /settings 已取消
-
-  fund: # 开发者保留命令
-    fund: |
-      请选择项目
-    show_fund_code: |
-      请选择基金代码，或者输入其他基金代码。输入 /cancel 退出操作
-    cancel: |
-      命令 /fund 已取消
-
-  error:
-    error: |
-      An exception occurred.

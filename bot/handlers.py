@@ -2,21 +2,22 @@
 # -*- encoding: utf-8 -*-
 """
 @Filename    :  handlers.py
-@Datatime    :  2021/09/23 18:42:37
+@Datatime    :  2021/11/07 20:02:57
 @Author      :  Kiyan Yang
 @Contact     :  KiyanYang@outlook.com
-@Version     :  v1.1
+@Version     :  v1.2
 @Description :  telegram bot 所需要的 handler 模块
 """
-import json
-import logging
-import os
-import traceback
+from functools import wraps
+from typing import Any
 
 import requests
 from telegram import (
     BotCommandScopeChat,
     BotCommandScopeDefault,
+    ChatAction,
+    InlineKeyboardButton,
+    Message,
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
     Update,
@@ -29,40 +30,114 @@ from telegram.ext import (
     MessageHandler,
 )
 
-from .config import CFG, GITHUB
-from .my_bot import BOT
-from .tools import (
-    EscapeMarkDowmV2,
-    Fund,
-    GetUrlError,
-    MessageError,
-    MessageText,
-    datetime_now,
-)
+from .config import CFG, DEVELOPER_CHAT_ID, GITHUB
+from .tools import Fund, MarkdownV2, get_logger
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
-def get_lang(primary_key: str, subkey: str, language_code: str | None = None):
-    if (language_code is None) or (language_code not in CFG[1].keys()):
-        language_code = 'zh'
-    return CFG[1][language_code][primary_key][subkey]
+# 辅助函数 =====================================================================
+def build_keyboard(
+    buttons: list[InlineKeyboardButton] | list[ReplyKeyboardMarkup],
+    n_cols: int,
+    header_buttons: InlineKeyboardButton
+    | list[InlineKeyboardButton]
+    | ReplyKeyboardMarkup
+    | list[ReplyKeyboardMarkup] = None,
+    footer_buttons: InlineKeyboardButton
+    | list[InlineKeyboardButton]
+    | ReplyKeyboardMarkup
+    | list[ReplyKeyboardMarkup] = None,
+) -> list[list[InlineKeyboardButton]] | list[list[ReplyKeyboardMarkup]]:
+    keyboard = [buttons[x:x + n_cols] for x in range(0, len(buttons), n_cols)]
+    if header_buttons:
+        keyboard.insert(0, header_buttons if isinstance(header_buttons, list) else [header_buttons])
+    if footer_buttons:
+        keyboard.append(footer_buttons if isinstance(footer_buttons, list) else [footer_buttons])
+    return keyboard
 
 
-# 均使用 classmethod 或 staticmethod, 以防止调用出错
+def get_text(topkey: str, subkey: str, update: Update = None, language_code: str = None):
+    if update is not None:
+        code = update.effective_user.language_code
+    if language_code is not None:
+        code = language_code
+    # code = 'en'  # 测试语言使用
+    if (code is None) or (code not in ('zh-hans', 'en')):
+        code = 'zh-hans'
+    return CFG[1][topkey][subkey][code]
+
+
+def stop(*args, **kwargs) -> int:
+    return END
+
+
+# 装饰器 =======================================================================
+def send_action(action) -> Any:
+    """Sends `action` while processing func command."""
+    def decorator(func: callable):
+        @wraps(func)
+        def send_action_(self, update: Update, context: CallbackContext, *args, **kwargs) -> Any:
+            context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=action)
+            return func(self, update, context, *args, **kwargs)
+
+        return send_action_
+
+    return decorator
+
+
+def cancel(topkey: str, subkey: str, language_code: str = None) -> Any:
+    '''执行取消命令，发送消息，移除键盘'''
+    def decorator(func: callable):
+        @wraps(func)
+        def cancel_(self, update: Update, context: CallbackContext, *args, **kwargs):
+            res = func(self, update, context, *args, **kwargs)
+            chat_id = update.effective_message.chat_id
+            language_code = update.effective_user.language_code
+            text = get_text(topkey, subkey, language_code=language_code)
+            context.bot.send_message(chat_id, text, reply_markup=ReplyKeyboardRemove())
+            return res
+
+        return cancel_
+
+    return decorator
+
+
+def stop_other_conversation(func: callable) -> Any:
+    """停止其他对话"""
+    @wraps(func)
+    def stop_(self, update: Update, context: CallbackContext, *args, **kwargs):
+        stop_keys = STOP_KEYS.copy()
+        del stop_keys[func.__name__]
+        for stop_key in stop_keys.values():
+            message = Message(
+                message_id=0,
+                date=update.message.date,
+                chat=update.message.chat,
+                from_user=update.message.from_user,
+                text=stop_key,
+            )
+            context.dispatcher.process_update(Update(update.update_id, message=message))
+        return func(self, update, context, *args, **kwargs)
+
+    return stop_
+
+
+# 快捷别名/全局变量 =============================================================
+send_action_typing = send_action(ChatAction.TYPING)
+send_action_upload_photo = send_action(ChatAction.UPLOAD_PHOTO)
+END = ConversationHandler.END
+STOP_KEYS = {'fund': '_stop_fund_', 'settings': '_stop_settings_'}
+STOP_HANDLERS = {k: MessageHandler(Filters.regex(f'^{v}$'), stop) for k, v in STOP_KEYS.items()}
+
+
 # CommandHandler ==============================================================
 class CommHandlerBingimage:
-    """命令/bing_image => 必应日图"""
+    """命令`/bing_image` => 必应日图"""
+    def __init__(self) -> None:
+        self.handler = CommandHandler('bing_image', self.bing_image)
 
-    def __new__(cls) -> CommandHandler:
-        comm_handler = CommandHandler('bing_image', cls.bing_image)
-        return comm_handler
-
-    @staticmethod
-    def _get_bingimage() -> tuple[str, str, str]:
+    def get_bingimage(self) -> tuple[str, str, str]:
         base_url = 'https://cn.bing.com/HPImageArchive.aspx?format=js&n=1&mkt=zh-CN'
         r_json = requests.get(base_url).json()
         url_image = r_json['images'][0]
@@ -71,422 +146,279 @@ class CommHandlerBingimage:
         image_copyright = url_image['copyright']
         return image_url, image_url_uhd, image_copyright
 
-    @classmethod
-    def bing_image(cls, update: Update, context: CallbackContext) -> None:
-        """获取必应今日高清壁纸，并包含UHD图链接"""
-        chat_id = update.effective_chat.id
-        context.bot.send_chat_action(chat_id, 'upload_photo')
-        image_url, image_url_uhd, image_copyright = cls._get_bingimage()
-        text_view_uhd_image = get_lang('bing_image', 'bing_image')
-        text = f'''\
-            {image_copyright}
-            \[{text_view_uhd_image}\]\({image_url_uhd}\)
-            '''
-        text = MessageText.dedent(text)
-        text = EscapeMarkDowmV2.sub_auto(text)
-        context.bot.send_photo(
-            chat_id,
-            image_url,
-            caption=text,
-            parse_mode='MarkdownV2',
-            reply_markup=ReplyKeyboardRemove(),
-        )
-        return ConversationHandler.END
+    @send_action_upload_photo
+    def bing_image(self, update: Update, context: CallbackContext) -> None:
+        """获取必应今日高清壁纸，包含高清图链接、超高清图链接、版权信息"""
+        chat_id = update.effective_message.chat_id
+        image_url, image_url_uhd, image_copyright = self.get_bingimage()
+        text_view_uhd_image = get_text('bing_image', 'bing_image', update=update)
+        text = (f'{image_copyright}', f'\[{text_view_uhd_image}\]\({image_url_uhd}\)')
+        text = MarkdownV2.sub_auto('\n'.join(text))
+        context.bot.send_photo(chat_id, image_url, caption=text, parse_mode='MarkdownV2')
 
 
 # CommandHandler ==============================================================
-class CommHandlerCancal:
-    """命令/cancel => 取消"""
+class CommHandlerCancel:
+    """命令`/cancel` => 取消"""
+    def __init__(self) -> None:
+        self.handler = CommandHandler('cancel', self.cancel)
 
-    def __new__(cls) -> CommandHandler:
-        comm_handler = CommandHandler('cancel', cls.cancel)
-        return comm_handler
-
-    @staticmethod
-    def cancel(update: Update, context: CallbackContext) -> None:
+    @cancel('cancel', 'cancel')
+    def cancel(self, update: Update, context: CallbackContext) -> None:
         """取消操作, 重置状态"""
-        chat_id = update.effective_chat.id
-        text = get_lang('cancel', 'cancel')
-        context.bot.send_message(chat_id, text, reply_markup=ReplyKeyboardRemove())
-        return ConversationHandler.END
+        pass
+
+
+# CommandHandler ==============================================================
+class CommHandlerEcho:
+    """命令`/echo` => 复读消息"""
+    def __init__(self) -> None:
+        self.handler = CommandHandler('echo', self.echo)
+
+    def echo(self, update: Update, context: CallbackContext) -> None:
+        chat_id = update.effective_message.chat_id
+        message = update.message
+        if 'reply_to_message' in message.to_dict().keys():
+            try:
+                message_id = message.reply_to_message.message_id
+                context.bot.copy_message(chat_id, chat_id, message_id)
+            except Exception as e:
+                ...
+        else:
+            text = get_text('echo', 'echo', update=update)
+            text = MarkdownV2.sub_auto(text)
+            context.bot.send_message(chat_id, text, parse_mode='MarkdownV2')
 
 
 # CommandHandler ==============================================================
 class CommHandlerHello:
-    """命令/hello => 问好"""
+    """命令`/hello` => 问好"""
+    def __init__(self) -> None:
+        self.handler = CommandHandler('hello', self.hello)
 
-    def __new__(cls) -> CommandHandler:
-        comm_handler = CommandHandler('hello', cls.hello)
-        return comm_handler
-
-    @staticmethod
-    def hello(update: Update, context: CallbackContext) -> None:
-        chat_id = update.effective_chat.id
+    def hello(self, update: Update, context: CallbackContext) -> None:
+        chat_id = update.effective_message.chat_id
         first_name = update.effective_user.first_name
-        text_hello = get_lang('hello', 'hello')
+        text_hello = get_text('hello', 'hello', update=update)
         text = f'{text_hello}{first_name}'
-        context.bot.send_message(chat_id, text, reply_markup=ReplyKeyboardRemove())
-        return ConversationHandler.END
+        context.bot.send_message(chat_id, text)
 
 
 # CommandHandler ==============================================================
 class CommHandlerHelp:
-    """命令/help => 帮助"""
+    """命令`/help` => 帮助"""
+    def __init__(self) -> None:
+        self.handler = CommandHandler('help', self.help)
 
-    def __new__(cls) -> CommandHandler:
-        comm_handler = CommandHandler('help', cls.help)
-        return comm_handler
-
-    @staticmethod
-    def help(update: Update, context: CallbackContext) -> None:
-        chat_id = update.effective_chat.id
-        if chat_id == os.environ['DEVELOPER_CHAT_ID']:
-            text = get_lang('help', 'help_1')
+    def help(self, update: Update, context: CallbackContext) -> None:
+        chat_id = update.effective_message.chat_id
+        if chat_id == DEVELOPER_CHAT_ID:
+            text = get_text('help', 'help_1', update=update)
         else:
-            text = get_lang('help', 'help_1')
-        text = EscapeMarkDowmV2.sub_auto(text)
-        context.bot.send_message(
-            chat_id, text, parse_mode='MarkdownV2', reply_markup=ReplyKeyboardRemove()
-        )
-        return ConversationHandler.END
+            text = get_text('help', 'help_1', update=update)
+        text = MarkdownV2.sub_auto(text)
+        context.bot.send_message(chat_id, text, parse_mode='MarkdownV2')
+
+
+# CommandHandler ==============================================================
+class CommHandlerHhsh:
+    """命令`/hhsh` => 好好说话"""
+    def __init__(self) -> None:
+        self.handler = CommandHandler('hhsh', self.hhsh)
+
+    def get_nbnhhsh(self, text: list[str] = None) -> list[dict[str:list[str]]]:
+        payload = {'text': ','.join(text)}
+        res = requests.post(CFG[0]['API']['nbnhhsh'], json=payload).json()
+        # 反序再反序可以使重复的数据按首次出现的位置排序
+        rule = {x: i for i, x in enumerate(text[::-1])}
+        res_sorted = sorted(res, key=lambda x: rule[x['name']], reverse=True)
+        return res_sorted
+
+    @send_action_typing
+    def hhsh(self, update: Update, context: CallbackContext) -> None:
+        def trans(nbnhhsh: dict) -> str:
+            if 'trans' in nbnhhsh.keys():
+                trans = nbnhhsh['trans']
+                trans.insert(0, '')
+                trans_text = '\n    '.join(trans)
+            else:
+                trans_text = '\n    ' + text_hhsh_2
+            return f'\*{nbnhhsh["name"]}：\*{trans_text}\n'
+
+        chat_id = update.effective_message.chat_id
+        args_hhsh = context.args
+        text_hhsh_1 = get_text('hhsh', 'hhsh_1', update=update)
+        text_hhsh_2 = get_text('hhsh', 'hhsh_2', update=update)
+        if args_hhsh == [] or args_hhsh is None:
+            text = text_hhsh_1
+        else:
+            nbnhhsh = self.get_nbnhhsh(args_hhsh)
+            text = [trans(x) for x in nbnhhsh]
+            text = '\n'.join(text)
+        text = MarkdownV2.sub_auto(text)
+        context.bot.send_message(chat_id, text, parse_mode='MarkdownV2')
 
 
 # CommandHandler ==============================================================
 class CommHandlerStart:
-    """命令/start => 开始"""
+    """命令`/start` => 开始"""
+    def __init__(self) -> None:
+        self.handler = CommandHandler('start', self.start)
 
-    def __new__(cls) -> CommandHandler:
-        comm_handler = CommandHandler('start', cls.start)
-        return comm_handler
-
-    @staticmethod
-    def start(update: Update, context: CallbackContext) -> None:
-        chat_id = update.effective_chat.id
-        text = get_lang('start', 'start')
-        context.bot.send_message(chat_id, text, reply_markup=ReplyKeyboardRemove())
-        return ConversationHandler.END
+    def start(self, update: Update, context: CallbackContext) -> None:
+        chat_id = update.effective_message.chat_id
+        text = get_text('start', 'start', update=update)
+        context.bot.send_message(chat_id, text)
 
 
 # ConversationHandler =========================================================
 class ConvHandlerFund:
-    """命令/fund => 基金相关，启动对话"""
-
-    def __new__(cls) -> ConversationHandler:
-        cls.CHOOSING, cls.FUNDINFO = range(2)
-        cls.fund_url = CFG[0]['jsdelivr']['fund']
-        __states = {
-            cls.CHOOSING: [
-                MessageHandler(Filters.regex('^(基金信息)$'), cls.show_fund_code),
-                MessageHandler(Filters.regex('^(今日操作)$'), cls.send_today_action),
-                MessageHandler(Filters.regex('^(估计收益)$'), cls.send_all_fund_income),
-                MessageHandler(Filters.regex('^(/fund)$'), ConvHandlerFund.fund),
-                MessageHandler(Filters.regex('^(/settings)$'), ConvHandlerSettings.settings),
+    """命令`/fund` => 基金相关，启动对话"""
+    def __init__(self) -> None:
+        self.CHOOSING, self.FUNDINFO = range(2)
+        self.fund_url = CFG[0]['GitHub']['fund']
+        _states = {
+            self.CHOOSING: [
+                MessageHandler(Filters.regex('^基金信息$'), self.show_fund_code),
+                MessageHandler(Filters.regex('^今日操作$'), self.send_today_action),
+                MessageHandler(Filters.regex('^估计收益$'), self.send_all_fund_income),
             ],
-            cls.FUNDINFO: [
-                MessageHandler(Filters.regex(r'^\d{6}$'), cls.send_fund_info),
-                MessageHandler(Filters.regex('^(/fund)$'), ConvHandlerFund.fund),
-                MessageHandler(Filters.regex('^(/settings)$'), ConvHandlerSettings.settings),
+            self.FUNDINFO: [
+                MessageHandler(Filters.regex(r'^\d{6}$'), self.send_fund_info),
             ],
         }
-        conv_handler = ConversationHandler(
-            entry_points=[CommandHandler('fund', cls.fund)],
-            states=__states,
-            fallbacks=[CommandHandler('cancel', cls.cancel)],
+        self.handler = ConversationHandler(
+            entry_points=[CommandHandler('fund', self.fund)],
+            states=_states,
+            fallbacks=[CommandHandler('cancel', self.cancel), STOP_HANDLERS['fund']],
+            allow_reentry=True,
         )
-        return conv_handler
 
-    @classmethod
-    def fund(cls, update: Update, context: CallbackContext):
-        try:
-            cls.fund_data = GITHUB.get_raw(cls.fund_url, 'json')
-        except:
-            raise GetUrlError(cls.github_url, 'Fund/fund【fund 命令】')
-        chat_id = update.effective_chat.id
-        text = get_lang('fund', 'fund')
-        myfund_reply_keyboard = [['基金信息', '今日操作', '估计收益']]
-        markup = ReplyKeyboardMarkup(
-            myfund_reply_keyboard, resize_keyboard=True, one_time_keyboard=True
-        )
-        context.bot.send_message(chat_id, text, reply_markup=markup)
-        return cls.CHOOSING
+    @stop_other_conversation
+    def fund(self, update: Update, context: CallbackContext):
+        ...
+        return self.CHOOSING
 
     # fund选择 基金信息_1
-    @classmethod
-    def show_fund_code(cls, update: Update, context: CallbackContext):
-        chat_id = update.effective_chat.id
-        text = get_lang('fund', 'show_fund_code')
-        wang_ge = cls.fund_data['WangGe']  # 获取网格基金
-        fundcode = [x[0] for x in wang_ge]
-        fundcode = [fundcode[x : x + 3] for x in range(0, len(fundcode), 3)]
-        markup = ReplyKeyboardMarkup(fundcode, resize_keyboard=True)
-        context.bot.send_message(chat_id, text, reply_markup=markup)
-        return cls.FUNDINFO
+    def show_fund_code(self, update: Update, context: CallbackContext):
+        ...
+        return self.FUNDINFO
 
     # fund选择 基金信息_2, 根据输入的基金代码获取相关信息
-    @classmethod
-    def send_fund_info(cls, update: Update, context: CallbackContext):
-        chat_id = update.effective_chat.id
-        context.bot.send_chat_action(chat_id, 'typing')  # 发送动作
-        # 创建基金数据，并转置
-        fund_info_list = [Fund.FUNDINFO_HEADER]
-        fund_info_list.append(Fund.get_fund_info(update.effective_message.text))
-        fund_info_list_zip = list(zip(*fund_info_list))
-        # 将转置后的2维list中一维用'：'连接，然后在用'\n'连接
-        flz = ['：'.join([str(i) for i in x]) for x in fund_info_list_zip]
-        text = '\n'.join(flz)
-        # 发送信息
-        context.bot.send_message(chat_id, text)
-        return cls.FUNDINFO
+    @send_action_typing
+    def send_fund_info(self, update: Update, context: CallbackContext):
+        ...
+        return self.FUNDINFO
 
     # myfund选择“今日操作”
-    @classmethod
-    def send_today_action(cls, update: Update, context: CallbackContext):
-        chat_id = update.effective_chat.id
-        context.bot.send_chat_action(chat_id, 'typing')  # 发送动作
-        wang_ge = cls.fund_data['WangGe']  # 获取网格基金
-        # 创建“今日操作”数据
-        fund_dict = {}
-        for fe in wang_ge:
-            fund_dict.update(Fund.get_fund_info(fe[0], type='dict'))
-        code_jz_fene_w_jzgs_gzzf = [x[:] + fund_dict[x[0]][1:3] for x in wang_ge]
-        fw = Fund.get_fund_working(code_jz_fene_w_jzgs_gzzf)  # 得到今日操作
-        # 基金代码左对齐<10, 今日操作左对齐<9, 估值涨幅右对齐>7
-        text_fw_1 = [f'{x[0]:<10}{x[1]:<9}{x[2]:>7}' for x in fw]
-        text_fw_2 = '\n'.join(text_fw_1)
-        text = f'\`{text_fw_2}\`'
-        text = EscapeMarkDowmV2.sub_auto(text)
-        # 发送信息，并移除回复键盘
-        context.bot.send_message(
-            chat_id, text, parse_mode='MarkdownV2', reply_markup=ReplyKeyboardRemove()
-        )
-        return ConversationHandler.END
+    @send_action_typing
+    def send_today_action(self, update: Update, context: CallbackContext):
+        ...
+        return END
 
     # myfund选择“估计收益”
-    @classmethod
-    def send_all_fund_income(cls, update: Update, context: CallbackContext):
-        chat_id = update.effective_chat.id
-        context.bot.send_chat_action(chat_id, 'typing')  # 发送动作
-        all_fund = cls.fund_data['AllFund']  # 获取全部基金份额
-        code_income_name = []
-        all_fund_income = 0
-        today = datetime_now(f='d')
-        res = requests.get(CFG[0]['API_holiday'] + today).json()
-        for code in all_fund:
-            fund_info = Fund.get_fund_info(code)
-            name = f'{fund_info[1][:9]}'
-            if fund_info[5] == today:
-                jz, jz_last = float(fund_info[4]), float(fund_info[8])
-                income = all_fund[code] * (jz - jz_last)
-                code += '^'  # 表示实际收益
-            elif res['type']['type'] == 0:
-                jz, jz_last = float(fund_info[2]), float(fund_info[4])
-                income = all_fund[code] * (jz - jz_last)
-                code += '*'  # 表示估算收益
-            else:
-                income = 0  # 非交易日返回
-                code += '-'  # -
-            code_income_name.append([code, f'{income:.2f}', name])
-            all_fund_income += income
-        code_income_name.append(['Income', f'{all_fund_income:.2f}', ''])
-        # 基金代码左对齐<10, 今日收益右对齐>7, 基金名称
-        code_income_name = [f'{x[0]:<7}{x[1]:>7}  {x[2]}' for x in code_income_name]
-        text_code_income_name = '\n'.join(code_income_name)
-        text = EscapeMarkDowmV2.sub_auto(f'\`{text_code_income_name}\`')
-        # 发送信息，并移除回复键盘
-        context.bot.send_message(
-            chat_id, text, parse_mode='MarkdownV2', reply_markup=ReplyKeyboardRemove()
-        )
-        return ConversationHandler.END
+    @send_action_typing
+    def send_all_fund_income(self, update: Update, context: CallbackContext) -> int:
+        ...
+        return END
 
-    @staticmethod
-    def cancel(update: Update, context: CallbackContext):
-        chat_id = update.effective_chat.id
-        text = get_lang('fund', 'cancel')
-        context.bot.send_message(chat_id, text, reply_markup=ReplyKeyboardRemove())
-        return ConversationHandler.END
+    @cancel('fund', 'cancel')
+    def cancel(self, update: Update, context: CallbackContext) -> int:
+        return END
 
 
 # ConversationHandler =========================================================
 class ConvHandlerSettings:
-    """命令/settings => 设置"""
-
-    def __new__(cls) -> ConversationHandler:
-        cls.SETTINGS_COMMANDS = 0
-        cls.DEVELOPER_CHAT_ID = os.environ['DEVELOPER_CHAT_ID']
-        __states = {
-            cls.SETTINGS_COMMANDS: [
-                MessageHandler(Filters.regex('^(设置命令)$'), cls.set_my_commands),
-                MessageHandler(Filters.regex('^(删除命令)$'), cls.del_my_commands),
-                MessageHandler(Filters.regex('^(/fund)$'), ConvHandlerFund.fund),
-                MessageHandler(Filters.regex('^(/settings)$'), ConvHandlerSettings.settings),
+    """命令`/settings` => 设置，启动对话"""
+    def __init__(self) -> None:
+        self.SETTINGS = range(1)
+        _states = {
+            self.SETTINGS: [
+                MessageHandler(Filters.regex('^设置命令$'), self.set_my_commands),
+                MessageHandler(Filters.regex('^删除命令$'), self.del_my_commands),
             ]
         }
-        conv_handler = ConversationHandler(
-            entry_points=[CommandHandler('settings', cls.settings)],
-            states=__states,
-            fallbacks=[CommandHandler('cancel', cls.cancel)],
+        self.handler = ConversationHandler(
+            entry_points=[CommandHandler('settings', self.settings)],
+            states=_states,
+            fallbacks=[CommandHandler('cancel', self.cancel), STOP_HANDLERS['settings']],
+            allow_reentry=True,
         )
-        return conv_handler
 
-    @classmethod
-    def settings(cls, update: Update, context: CallbackContext):
-        chat_id = update.effective_chat.id
-        settings_reply_keyboard = [['设置命令', '删除命令']]
+    @stop_other_conversation
+    def settings(self, update: Update, context: CallbackContext) -> int:
+        chat_id = update.effective_message.chat_id
         markup = ReplyKeyboardMarkup(
-            settings_reply_keyboard, resize_keyboard=True, one_time_keyboard=True
+            [['设置命令', '删除命令']],
+            resize_keyboard=True,
+            one_time_keyboard=True,
         )
-        text = get_lang('settings', 'settings')
+        text = get_text('settings', 'settings', update=update)
         context.bot.send_message(chat_id, text, reply_markup=markup)
-        return cls.SETTINGS_COMMANDS
+        return self.SETTINGS
 
-    @classmethod
-    def set_my_commands(cls, update: Update, context: CallbackContext):
-        scope_1 = BotCommandScopeChat(cls.DEVELOPER_CHAT_ID)
+    def set_my_commands(self, update: Update, context: CallbackContext) -> int:
+        scope_1 = BotCommandScopeChat(DEVELOPER_CHAT_ID)
         scope_2 = BotCommandScopeDefault()
         context.bot.set_my_commands(CFG[0]['MY_COMMANDS_1'], scope=scope_1)
         context.bot.set_my_commands(CFG[0]['MY_COMMANDS_2'], scope=scope_2)
-        chat_id = update.effective_chat.id
-        text = get_lang('settings', 'set_my_commands')
+        chat_id = update.effective_message.chat_id
+        text = get_text('settings', 'set_my_commands', update=update)
         context.bot.send_message(chat_id, text, reply_markup=ReplyKeyboardRemove())
-        return ConversationHandler.END
+        return END
 
-    @classmethod
-    def del_my_commands(cls, update: Update, context: CallbackContext):
-        scope_1 = BotCommandScopeChat(cls.DEVELOPER_CHAT_ID)
+    def del_my_commands(self, update: Update, context: CallbackContext) -> int:
+        scope_1 = BotCommandScopeChat(DEVELOPER_CHAT_ID)
         scope_2 = BotCommandScopeDefault()
         context.bot.delete_my_commands(scope=scope_1)
         context.bot.delete_my_commands(scope=scope_2)
-        chat_id = update.effective_chat.id
-        text = get_lang('settings', 'del_my_commands')
+        chat_id = update.effective_message.chat_id
+        text = get_text('settings', 'del_my_commands', update=update)
         context.bot.send_message(chat_id, text, reply_markup=ReplyKeyboardRemove())
-        return ConversationHandler.END
+        return END
 
-    @staticmethod
-    def cancel(update: Update, context: CallbackContext):
-        chat_id = update.effective_chat.id
-        text = get_lang('settings', 'cancel')
-        context.bot.send_message(chat_id, text, reply_markup=ReplyKeyboardRemove())
-        return ConversationHandler.END
-
-
-# MessageHandler ==============================================================
-class MessHandlerEcho:
-    """消息 => 复读普通消息"""
-
-    def __new__(cls) -> MessageHandler:
-        __filters = Filters.text & ~Filters.command & Filters.chat_type.private
-        mess_handler = MessageHandler(__filters, cls.echo)
-        return mess_handler
-
-    @staticmethod
-    def echo(update: Update, _) -> None:
-        chat_id = update.effective_chat.id
-        # 复读，message.copy的方法是返回MessageId，行为类似于forwardMessage
-        update.message.copy(chat_id)
+    @cancel('settings', 'cancel')
+    def cancel(self, update: Update, context: CallbackContext) -> int:
+        return END
 
 
 # MessageHandler ==============================================================
 class MessHandlerUnknown:
     """消息 => 未知指令"""
+    def __init__(self) -> None:
+        commands = [x[0] for x in CFG[0]['MY_COMMANDS_1']]
+        commands_filter = Filters.regex(f'^({"|".join(commands)})')
+        filters = ~commands_filter & Filters.command & Filters.chat_type.private
+        self.handler = MessageHandler(filters, self.unknown)
 
-    def __new__(cls) -> MessageHandler:
-        __filters = Filters.command & Filters.chat_type.private
-        mess_handler = MessageHandler(__filters, cls.unknown)
-        return mess_handler
-
-    @staticmethod
-    def unknown(update: Update, context: CallbackContext) -> None:
-        chat_id = update.effective_chat.id
-        text = get_lang('unknown', 'unknown')
+    def unknown(self, update: Update, context: CallbackContext) -> None:
+        chat_id = update.effective_message.chat_id
+        text = get_text('unknown', 'unknown', update=update)
         context.bot.send_message(chat_id, text)
-
-
-# ErrorHandler ================================================================
-class ErrorHandler:
-    """记录错误日志并向开发者发送 Telegram 消息"""
-
-    def __new__(cls):
-        error_handler = cls.error_handler
-        return error_handler
-
-    @classmethod
-    def error_handler(cls, update: object, context: CallbackContext) -> None:
-        """记录错误日志并向开发者发送 Telegram 消息"""
-        logger.error(msg="Exception while handling an update:", exc_info=context.error)
-
-        tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
-        tb_string = ''.join(tb_list)
-
-        update_str = update.to_dict() if isinstance(update, Update) else str(update)
-        text_error = get_lang('error', 'error')
-        text = (
-            f'{text_error}',
-            f'\`update = {json.dumps(update_str, indent=2, ensure_ascii=False)}\`',
-            f'\`context.chat_data = {str(context.chat_data)}\`',
-            f'\`context.user_data = {str(context.user_data)}\`',
-            f'\`{tb_string}\`',
-        )
-        text = EscapeMarkDowmV2.sub_auto(text)
-
-        # 最后, 发送消息，采用多次发送
-        BOT.send_too_long_message(
-            os.environ['DEVELOPER_CHAT_ID'], text, joiner='\n\n', parse_mode='MarkdownV2'
-        )
 
 
 # TestHandler =================================================================
 class TestHandler:
-    def __new__(cls):
-        # __filters = Filters.chat(os.environ['DEVELOPER_CHAT_ID'])
-        # comm_handler = CommandHandler('test', cls.test, filters=__filters)
-        test_handler = CommandHandler('test', cls.test)
-        return test_handler
+    def __init__(self) -> None:
+        self.handler = CommandHandler('test', self.test)
 
-    @classmethod
-    def test(cls, update: Update, context: CallbackContext):
-        # chat_id = update.effective_chat.id
+    def test(self, update: Update, context: CallbackContext):
+        self.test_0()
 
-        # with open('test.txt', encoding='utf-8') as f:
-        #     lines = f.readlines()
-        #     line = f.read()
+    def test_0(self, update: Update, context: CallbackContext):
+        ...
+        pass
 
-        # tool_bot.long2multiple_message(context.bot, chat_id, [line], joiner='\n\n')
-        # context.bot.send_message(chat_id, text, parse_mode='MarkdownV2')
-        cls.test_error1()
 
-    @classmethod
-    def test_error1(cls):
-        try:
-            cls.test_error2()
-        except:
-            try:
-                try:
-                    try:
-                        try:
-                            raise ValueError('xxxasd')
-                        except:
-                            raise ValueError('xxx123')
-                    except:
-                        raise ValueError('xxxqwe')
-                except:
-                    raise ValueError('xxx456')
-            except:
-                raise MessageError('xxxpoi', '/bot.py/TestHandler')
-        finally:
-            cls.test_error2()
-
-    @classmethod
-    def test_error2(cls):
-        try:
-            try:
-                try:
-                    try:
-                        raise ValueError('asd')
-                    except:
-                        raise ValueError('123')
-                except:
-                    raise ValueError('qwe')
-            except:
-                raise ValueError('456')
-        except:
-            raise ValueError('poi')
+# handlers
+comm_handler_bingimage = CommHandlerBingimage().handler
+comm_handler_cancel = CommHandlerCancel().handler
+comm_handler_echo = CommHandlerEcho().handler
+comm_handler_hello = CommHandlerHello().handler
+comm_handler_help = CommHandlerHelp().handler
+comm_handler_hhsh = CommHandlerHhsh().handler
+comm_handler_start = CommHandlerStart().handler
+conv_handler_fund = ConvHandlerFund().handler
+conv_handler_settings = ConvHandlerSettings().handler
+mess_handler_unknown = MessHandlerUnknown().handler
+test_handler = TestHandler().handler

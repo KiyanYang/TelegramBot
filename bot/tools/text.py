@@ -5,16 +5,15 @@
 @Datatime    :  2021/09/23 20:06:30
 @Author      :  Kiyan Yang
 @Contact     :  KiyanYang@outlook.com
-@Version     :  v1.4
+@Version     :  v1.4.1
 @Description :  文本相关工具: MarkdownV2 转义, 判断是否为空消息, 判断字符串列表中元素是否过长,
-                短字符串列表转长字符串列表, 消除前置空格
+                短字符串列表转长字符串列表
 """
 import re
-from textwrap import dedent as textwarp_dedent
 from typing import Literal
 
 
-class EscapeMarkDowmV2:
+class MarkdownV2:
     @staticmethod
     def sub(text: str, key: Literal[1, 2, 3] = 3) -> str:
         """MarkdownV2 特殊字符转义
@@ -151,7 +150,7 @@ class MessageText:
             return False
 
     @staticmethod
-    def short2long(text: list[str], limit: int = 4000):
+    def short2long_message(text: list[str], limit: int = 4000):
         """
         文本元素由短字符串合成小于等于`limit`的长字符串
 
@@ -182,7 +181,7 @@ class MessageText:
         return new_text
 
     @classmethod
-    def too_long_split(cls, text: list[str], parse_mode=None, joiner=''):
+    def split_too_long_message(cls, text: list[str], parse_mode=None, joiner=''):
         """
         将 text: `list[str]` 元素中的过长字符串按行分割为多个字符串, 并构成新 text
         注: 由于对过长字符串按行分割, 如果其无法按行分割, 那么新 text 的元素可能依然有过长字符串
@@ -213,7 +212,7 @@ class MessageText:
 
             line = line[j_len:-j_len]
             lines = line.splitlines(keepends=True)
-            new_lines = cls.short2long(lines)
+            new_lines = cls.short2long_message(lines)
             new_lines = [j + i + j for i in new_lines]
             return new_lines
 
@@ -229,7 +228,7 @@ class MessageText:
                         new_lines = split_markdownv2(value)
                     else:
                         lines = value.splitlines(keepends=True)
-                        new_lines = cls.short2long(lines)
+                        new_lines = cls.short2long_message(lines)
                     new_lines[-1] += joiner  # 在最后的元素加上 joiner
                     new_text.extend(new_lines)
                 else:
@@ -238,10 +237,6 @@ class MessageText:
         else:  # text 不含过长字符串
             text = [i + joiner for i in text]
             return text
-
-    @staticmethod
-    def dedent(text: str):
-        return textwarp_dedent(text)
 
 
 if __name__ == '__main__':

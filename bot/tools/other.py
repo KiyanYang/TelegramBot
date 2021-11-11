@@ -2,16 +2,28 @@
 # -*- encoding: utf-8 -*-
 """
 @Filename    :  other.py
-@Datatime    :  2021/10/09 19:27:10
+@Datatime    :  2021/11/09 19:27:10
 @Author      :  Kiyan Yang
 @Contact     :  KiyanYang@outlook.com
-@Version     :  v1.0
-@Description :  其他工具: 监控文件
+@Version     :  v1.1
+@Description :  其他工具: 监控文件，日志
 """
+import logging
 import os
 import threading
 import time
 from datetime import datetime, timedelta, timezone
+
+
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO,
+)
+
+
+# 后续从此方式得到的 logger 都采用上述基本配置
+def get_logger(name: str | None = None):
+    return logging.getLogger(name)
 
 
 class FileWatchDog:
@@ -31,12 +43,6 @@ class FileWatchDog:
             if self.modified_time < mtime:
                 self.modified_time = mtime
                 self.handler_func['modified']()
-
-
-class AttributeDict(dict):
-    __slots__ = ()
-    __getattr__ = dict.__getitem__
-    __setattr__ = dict.__setitem__
 
 
 # 返回当前时间
